@@ -1,0 +1,81 @@
+ wget -O dind-cluster.sh https://github.com/kubernetes-sigs/kubeadm-dind-cluster/releases/download/v0.2.0/dind-cluster-v1.14.sh 
+$ chmod +x dind-cluster.sh
+
+$ # start the cluster
+$ ./dind-cluster.sh up
+
+$ # add kubectl directory to PATH
+$ export PATH="$HOME/.kubeadm-dind-cluster:$PATH"
+
+ Run to get list of nodes after the cluster has been initilaized
+$ kubectl get nodes
+
+ This created a 3 node Kubernetes cluster.   
+
+
+To create a cluster with 5 nodes, use the NUM_NODES variable:
+
+$ sudo NUM_NODES=5 ./dind-cluster.sh up
+
+ To view the containers:
+
+$ docker ps  --format '{{ .ID }} - {{ .Names }} -- {{ .Labels }}'
+
+
+ #k8s dashboard available at http://localhost:<DOCKER_EXPOSED_PORT>/api/v1/namespaces/kube-system/services/kubernetes-dashboard:/proxy. See the  console for the URL.
+
+(IF HTTPS is enabled)
+The dashboard URL is 
+http://127.0.0.1:32769/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy  
+
+For Normal HTTP
+http://127.0.0.1:32769/api/v1/namespaces/kube-system/services/http:kubernetes-dashboard:/proxy
+
+$ # restart the cluster, this should happen much quicker than initial startup
+$ ./dind-cluster.sh up
+
+
+# stop the cluster
+$ ./dind-cluster.sh down
+
+$ # remove DIND containers and volumes
+$ ./dind-cluster.sh clean
+
+./dind-cluster.sh dump dumps the cluster state as a text block
+
+The following information is currently stored in the dump:
+
+    status and logs for the following systemd units on each DIND node, if the exist: kubelet.service, dindnet.service, criproxy.service and dockershim.service (the latter two are used by CRI Proxy)
+    ps auxww, docker ps -a, ip a and ip r output for each DIND node
+    the logs of all the containers of each pod in the cluster
+    the output of kubectl get all --all-namespaces -o wide, kubectl describe all --all-namespaces and kubectl get nodes -o wide
+
+***************************************************
+  POD Network setup
+For the pod network the POD_NETWORK_CIDR environment variable can be set to specify the pod sub-networks. One subnet will be created for each node in the cluster.
+
+For IPv4, the value must be a /16, of which this will be split into multiple /24 subnets. The master node will set the third octet to 2, and the minion nodes will set the third octet to 3+. For example, with 10.244.0.0/16, pods on the master node will be 10.244.2.X, on minion kube-node-1 will be 10.244.3.Y, on minion kube-node-2 will be 10.244.4.Z, etc.
+
+
+**********************************************
+Multiple clusters
+dind-cluster.sh can be used to create and manage multiple dind clusters.
+
+Normally, default names will be used for docker resources and the kubectl context. For example, kube-master (container name), kubeadm-dind-kube-master (volume name), dind (context name), etc. Likewise, the management, pod, and service IPs will use the defaults or user specified values (via environment variables). This would occur when CLUSTER_ID is not set, or set to "0".
+
+For each additional cluster, the user can set a unique CLUSTER_ID to a string that represents a number from 1..254. The number will be used on all management network IP addresses.
+
+For IPv4, the cluster ID will be used as the third octet of the management address (whether default or user specified). For example, with cluster ID "10", the default management network CIDR will be 10.192.10.0/24. For IPv6, the cluster ID will be placed as the hextet before the double colon, for the management CIDR. For example, a management ntwork CIDR of fd00:20::/64 will become fd00:20:2::/64, for a cluster ID of '2'.
+
+
+# creates a 'default' cluster
+$ ./dind-cluster up
+$ # creates a cluster with an ID of 10
+$ CLUSTER_ID="10" ./dind-cluster.sh up
+$ # creates an additional cluster with the label 'foo' and random cluster ID assigned
+$ DIND_LABEL="foo" ./dind-cluster.sh up
+
+View the containers:
+
+$ docker ps  --format '{{ .ID }} - {{ .Names }} -- {{ .Labels }}'
+****************************

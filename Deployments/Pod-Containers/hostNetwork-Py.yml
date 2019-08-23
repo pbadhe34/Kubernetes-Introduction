@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: testpod
+spec:
+  hostNetwork: true
+  containers:
+    - name: app-container
+      image: pbadhe34/my-apps:app1
+
+  
+
